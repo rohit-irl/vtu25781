@@ -160,3 +160,45 @@ stop calling GET on every page load. use the SSE stream from stage 1 so server s
 tradeoffs:
 - way fewer db calls
 - SSE keeps connection open which uses more server memory, polling still hits db just less
+
+## Stage 5
+problem: HR clicks "Notify All" and 50k students need 
+email + in-app notification at once
+current approach (not good):
+```
+for each student in students:
+  send_email(student)
+  save_to_db(student)
+  push_to_app(student)
+```
+
+### whats wrong
+- runs 50k times one by one, server get hang
+- if email fails at student 800, no way to know who got it, no retry
+- email apis have rate limits, will break midway
+
+### fix — use a queue
+HR clicks notify, api just adds jobs to a queue and returns immediately. worker runs in background, handles batches of 100, retries failed emails a few times
+if still fails after retries, log it somewhere to check later
+
+### db and email together or separate?
+separate. save in-app notif to db first, then send email as its own job
+if email fails, at least in-app notif is there. dont tie them together
+
+### better pseudocode
+```
+onNotifyAll(message):
+students = getAllStudents()
+for batch in chunks(students, 100):
+queue.add('notify-batch', { studentIds: batch, message })
+
+onJob('notify-batch', { studentIds, message }):
+for studentId in studentIds:
+save_to_db(studentId, message)
+queue.add('send-email', { studentId, message }, { retries: 3 })
+
+onJob('send-email', { studentId, message }):
+send_email(studentId, message)
+push_to_app(studentId, message)
+```
+api returns fast, failures get retried, no data lost
