@@ -48,3 +48,50 @@ quick sse event example:
   "notification": { "id": "notif_124", "title": "New grade posted", "read": false }
 }
 ```
+
+## Stage 2
+going with SQL (postgres). notifications have a clear structure and we need filtering by user and read status
+
+### notifications table
+```
+notifications
+-----------
+id          UID PRIMARY KEY
+user_id     UID NOT NULL
+title       VARCHAR(255)
+message     TEXT
+read        BOOLEAN DEFAULT false
+created_at  TIMESTAMP
+read_at     TIMESTAMP NULL
+```
+index on (user_id, created_at). maybe (user_id, read) also for the unread filter
+
+### problems when data grows
+- table gets huge if we never delete old notifications, queries get slow down
+- lots of users trying GET at once = db gets overloaded
+- marking read one at a time works for now but could be slow with more users (bulk update later)
+
+### queries
+fetch (GET /notifications):
+```sql
+SELECT id, title, message, read, created_at
+FROM notifications
+WHERE user_id = $1
+  AND ($2::boolean IS NULL OR read = $2)
+ORDER BY created_at DESC
+LIMIT $3;
+```
+
+mark read (PATCH):
+```sql
+UPDATE notifications
+SET read = true, read_at = NOW()
+WHERE id = $1 AND user_id = $2
+RETURNING id, read, read_at;
+```
+
+delete (DELETE):
+```sql
+DELETE FROM notifications
+WHERE id = $1 AND user_id = $2;
+```
