@@ -139,3 +139,24 @@ WHERE notificationType = 'Placement'
   AND createdAt >= NOW() - INTERVAL '7 days';
 ```
 returns unique studentIDs, add GROUP BY if you need counts per student
+
+## Stage 4
+problem: we fetch notifications on every page load and the db is getting slow
+
+### 1. caching with redis
+cache each user's notification list in redis, key like `notifs:user:1042`.when a new notification comes in, clear the cache so next request gets fresh data
+tradeoffs:
+- reads are much faster, db gets less traffic
+- cache can show old data if not cleared properly, also need to run redis separately
+
+### 2. pagination (enforce the limit)
+we already have `?limit=20` on GET but nobody enforces it. just cap it server side — max 20-50 per request
+tradeoffs:
+- easy win, less data per query
+- still hits db on every page load, just smaller amount
+
+### 3. poll less / use SSE instead
+stop calling GET on every page load. use the SSE stream from stage 1 so server sends data only when something new happens. or just poll every 30-60s instead of every load
+tradeoffs:
+- way fewer db calls
+- SSE keeps connection open which uses more server memory, polling still hits db just less
