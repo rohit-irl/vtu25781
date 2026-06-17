@@ -95,3 +95,47 @@ delete (DELETE):
 DELETE FROM notifications
 WHERE id = $1 AND user_id = $2;
 ```
+
+## Stage 3
+### slow query
+```sql
+SELECT * FROM notifications
+WHERE studentID = 1042
+  AND isRead = false
+ORDER BY createdAt ASC;
+```
+
+why its slow:
+1. `SELECT *` fetches everything even if you dont need it
+2. no index on studentID + isRead so db scans and sorts in memory
+3. `ORDER BY createdAt ASC` without index = extra work
+
+### optimized version
+```sql
+SELECT id, title, message, createdAt
+FROM notifications
+WHERE studentID = 1042
+  AND isRead = false
+ORDER BY createdAt ASC
+LIMIT 50;
+```
+and add index like:
+```sql
+CREATE INDEX idx_notif_student_unread
+ON notifications (studentID, createdAt)
+WHERE isRead = false;
+```
+partial because we mostly query unread anyway
+
+### indexes on every column?
+indexes slow down inserts and updates, waste disk space, and confuse the query planner. just index what you actually filter on
+
+### placement notifications last 7 days
+find all students who got a placement notification:
+```sql
+SELECT DISTINCT studentID
+FROM notifications
+WHERE notificationType = 'Placement'
+  AND createdAt >= NOW() - INTERVAL '7 days';
+```
+returns unique studentIDs, add GROUP BY if you need counts per student
