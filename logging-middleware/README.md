@@ -11,7 +11,7 @@ Simple reusable logger for the evaluation Log API.
 
 ### Quick usage
 ```js
-const { createLogger } = require("./logger");
+import { createLogger } from "./logger.js";
 const Log = createLogger({
   accessToken: process.env.LOG_ACCESS_TOKEN,
 });

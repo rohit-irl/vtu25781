@@ -14,10 +14,16 @@ const BACKEND_PACKAGES = new Set([
 ]);
 
 const FRONTEND_PACKAGES = new Set([
-  "api","component", "hook", "page", "state", "style",
+  "api",
+  "component",
+  "hook",
+  "page",
+  "state",
+  "style",
 ]);
 
 const SHARED_PACKAGES = new Set(["auth", "config", "middleware", "utils"]);
+
 function getAllowedPackagesForStack(stack) {
   const stackPackages = stack === "backend" ? BACKEND_PACKAGES : FRONTEND_PACKAGES;
   return new Set([...stackPackages, ...SHARED_PACKAGES]);
@@ -42,8 +48,13 @@ function validatePayload(stack, level, pkg, message) {
   }
 }
 
-async function sendLog({
-  accessToken, stack, level, packageName, message, baseUrl = DEFAULT_BASE_URL,
+export async function sendLog({
+  accessToken,
+  stack,
+  level,
+  packageName,
+  message,
+  baseUrl = DEFAULT_BASE_URL,
 }) {
   if (!accessToken || typeof accessToken !== "string") {
     throw new Error("A valid bearer access token is required.");
@@ -56,9 +67,14 @@ async function sendLog({
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({stack, level, package: packageName, message,
+    body: JSON.stringify({
+      stack,
+      level,
+      package: packageName,
+      message,
     }),
   });
+
   let payload;
   try {
     payload = await response.json();
@@ -73,15 +89,18 @@ async function sendLog({
   return payload;
 }
 
-function createLogger({ accessToken, baseUrl = DEFAULT_BASE_URL }) {
+export function createLogger({ accessToken, baseUrl = DEFAULT_BASE_URL }) {
   return async function Log(stack, level, packageName, message) {
     return sendLog({
-      accessToken, stack, level, packageName, message, baseUrl,
+      accessToken,
+      stack,
+      level,
+      packageName,
+      message,
+      baseUrl,
     });
   };
 }
-module.exports = {
-  sendLog, createLogger,
-  ALLOWED_STACKS: Array.from(ALLOWED_STACKS),
-  ALLOWED_LEVELS: Array.from(ALLOWED_LEVELS),
-};
+
+export const ALLOWED_STACKS_LIST = Array.from(ALLOWED_STACKS);
+export const ALLOWED_LEVELS_LIST = Array.from(ALLOWED_LEVELS);
